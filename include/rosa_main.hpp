@@ -110,9 +110,9 @@ private:
     /* Params */
     int ne_KNN = 10;
     int k_KNN = 10;
-    int num_drosa_iter = 5;
-    int num_dcrosa_iter = 5;
-    float r_range = 0.1;    
+    int num_drosa_iter = 1;
+    int num_dcrosa_iter = 1;
+    float r_range = 0.1; 
     float th_mah = 0.1 * r_range; // Mahalanobis distance for
     float delta = 0.5; // used for distance query in 
     float sample_radius = 0.05; // used in lineextract

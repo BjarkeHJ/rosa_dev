@@ -1,5 +1,6 @@
 #include <rosa_main.hpp>
 #include <string>
+#include <chrono>
 
 #include <pcl/filters/voxel_grid.h>
 
@@ -8,7 +9,7 @@ void save_pcd_pts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pts, const std::stri
 void save_pcd_pts_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pts_nrms, const std::string &save_path);
 
 /* Input and Output Paths... */
-std::string pcd_path = "../data/blades.pcd";
+std::string pcd_path = "../data/windmill.pcd";
 std::string save_path = "../vis_tools/data/output.pcd";
 
 int main() {
@@ -22,7 +23,7 @@ int main() {
     vg.setLeafSize(1.0, 1.0, 1.0);
     vg.filter(*cloud_ds);
 
-    std::cout << cloud_ds->points.size() << std::endl;
+    std::cout << "Dowsampled Pointcloud... Size: " << cloud_ds->points.size() << std::endl;
 
     /* ROSA Algorithm */
     std::shared_ptr<RosaPoints> skel_op;
