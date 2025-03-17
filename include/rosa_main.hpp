@@ -1,4 +1,5 @@
-#include <iostream>
+#include <iostream> // For debugging
+#include <chrono> // For timing
 #include <algorithm>
 
 #include <pcl/point_types.h>
@@ -7,6 +8,7 @@
 #include <pcl/common/io.h>
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/filters/voxel_grid.h>
 
 #include <pcl/io/pcd_io.h> // for saving pcl tests
 
@@ -73,8 +75,7 @@ class RosaPoints {
     
     struct rosa 
     {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr pts_; 
-        pcl::PointCloud<pcl::PointXYZ>::Ptr orig_pts_;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr pts_;
         pcl::PointCloud<pcl::Normal>::Ptr normals_;
         pcl::PointCloud<pcl::PointNormal>::Ptr cloud_w_normals;
 
@@ -82,14 +83,13 @@ class RosaPoints {
         std::vector<std::vector<int>> neighs_new;
         std::vector<std::vector<int>> surf_neighs;
 
-        double *datas;
-        Eigen::MatrixXd pts_mat; // cloud in matrix format
-        Eigen::MatrixXd nrs_mat; // normals in matrix format
+        double *datas; // Stores normalized points in a vector (x1,x2,...y1,y2,...z1,z2,...)
+        Eigen::MatrixXd pts_mat; // cloud in matrix format (size x 3)
+        Eigen::MatrixXd nrs_mat; // normals in matrix format (size x 3)
 
         Eigen::MatrixXd skelver;
         Eigen::MatrixXd corresp;
         Eigen::MatrixXi skeladj;
-
     };
 
 public:
@@ -108,12 +108,13 @@ public:
     
 private:
     /* Params */
+    float ds_leaf_size = 0.005;
     int ne_KNN = 10;
     int k_KNN = 10;
     int num_drosa_iter = 1;
     int num_dcrosa_iter = 1;
     float r_range = 0.1; 
-    float th_mah = 0.1 * r_range; // Mahalanobis distance for
+    float th_mah = 0.1 * r_range; // Mahalanobis distance for determination of surface neighbours
     float delta = 0.5; // used for distance query in 
     float sample_radius = 0.05; // used in lineextract
 

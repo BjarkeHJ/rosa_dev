@@ -2,7 +2,6 @@
 
 void RosaPoints::init() {
     RC.pts_.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    RC.orig_pts_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     RC.normals_.reset(new pcl::PointCloud<pcl::Normal>);
     RC.cloud_w_normals.reset(new pcl::PointCloud<pcl::PointNormal>);
 
@@ -14,21 +13,22 @@ void RosaPoints::init() {
 }
 
 void RosaPoints::rosa_main(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud) {
-    if (cloud->points.size() < 10) {
+    if (cloud->points.empty()) {
         std::cout << "Recieved Cloud is Empty..." << std::endl;
         return;
     }
 
     set_cloud(cloud);
-
     normalize();
+
+    std::cout << "Downsampled PointCloud size: " << pcd_size_ << std::endl;
 
     pset.resize(pcd_size_, 3);
     vset.resize(pcd_size_, 3);
     vvar.resize(pcd_size_, 1);
 
+    // Insert normalized points in ordered structure
     RC.datas = new double[pcd_size_ * 3]();
-    // Insert normalized points
     for (int idx=0; idx<pcd_size_; idx++){
         RC.datas[idx] = RC.pts_->points[idx].x; 
         RC.datas[idx+pcd_size_] = RC.pts_->points[idx].y;
@@ -42,21 +42,20 @@ void RosaPoints::rosa_main(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud) {
 }
 
 
+
 /* Main Components */
 void RosaPoints::set_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud) {
-    // RC.orig_pts_.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    // RC.normals_.reset(new pcl::PointCloud<pcl::Normal>);
     RC.pts_->clear();
     RC.normals_->clear();
-    RC.orig_pts_ = cloud;
-    pcd_size_ = RC.orig_pts_->points.size();
-    RC.pts_mat.resize(pcd_size_, 3);
-    RC.nrs_mat.resize(pcd_size_, 3);
-    for (int i=0; i<pcd_size_; i++) {
-        RC.pts_mat(i,0) = RC.orig_pts_->points[i].x;
-        RC.pts_mat(i,1) = RC.orig_pts_->points[i].y;
-        RC.pts_mat(i,2) = RC.orig_pts_->points[i].z;
-    }
+    RC.pts_ = cloud;
+    pcd_size_ = RC.pts_->points.size();
+    // RC.pts_mat.resize(pcd_size_, 3);
+    // RC.nrs_mat.resize(pcd_size_, 3);
+    // for (int i=0; i<pcd_size_; i++) {
+    //     RC.pts_mat(i,0) = RC.pts_->points[i].x;
+    //     RC.pts_mat(i,1) = RC.pts_->points[i].y;
+    //     RC.pts_mat(i,2) = RC.pts_->points[i].z;
+    // }
 }
 
 void RosaPoints::normal_estimation() {
@@ -77,10 +76,6 @@ void RosaPoints::normal_estimation() {
 }
 
 void RosaPoints::normalize() {
-    // Store original cloud ... 
-    RC.pts_.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::copyPointCloud(*RC.orig_pts_, *RC.pts_);
-
     pcl::PointXYZ min, max;
     pcl::getMinMax3D(*RC.pts_, min, max);
     
@@ -112,8 +107,19 @@ void RosaPoints::normalize() {
     RC.cloud_w_normals.reset(new pcl::PointCloud<pcl::PointNormal>);
     pcl::concatenateFields(*RC.pts_, *RC.normals_, *RC.cloud_w_normals);
 
+    // Downsampling 
+    pcl::VoxelGrid<pcl::PointNormal> vgf;
+    vgf.setInputCloud(RC.cloud_w_normals);
+    vgf.setLeafSize(ds_leaf_size, ds_leaf_size, ds_leaf_size);
+    vgf.filter(*RC.cloud_w_normals);
+
+    pcd_size_ = RC.cloud_w_normals->points.size(); // update cloud size
+
+    // Reset variable for to accomodate normalized points...
     RC.pts_->clear();
     RC.normals_->clear();
+    RC.pts_mat.resize(pcd_size_, 3);
+    RC.nrs_mat.resize(pcd_size_, 3);
 
     pcl::Normal normal;
     pcl::PointXYZ pt;
@@ -516,112 +522,112 @@ void RosaPoints::rosa_lineextract() {
     }
 
 
-    int dim = RC.skelver.rows(); // number of vertices - should be current number of vertices perhaps?
-    Eigen::MatrixXi Adj;
-    Adj = Eigen::MatrixXi::Zero(dim, dim);
-    std::vector<int> temp_surf(k_KNN);
-    std::vector<int> good_neighs;
+    // int dim = RC.skelver.rows(); // number of vertices - should be current number of vertices perhaps?
+    // Eigen::MatrixXi Adj;
+    // Adj = Eigen::MatrixXi::Zero(dim, dim);
+    // std::vector<int> temp_surf(k_KNN);
+    // std::vector<int> good_neighs;
 
-    for (int pIdx=0; pIdx<pcd_size_; pIdx++) {
-        temp_surf.clear();
-        good_neighs.clear();
-        temp_surf = RC.surf_neighs[pIdx];
+    // for (int pIdx=0; pIdx<pcd_size_; pIdx++) {
+    //     temp_surf.clear();
+    //     good_neighs.clear();
+    //     temp_surf = RC.surf_neighs[pIdx];
 
-        for (int ne=0; ne<(int)temp_surf.size(); ne++) {
-            if (bad_sample(temp_surf[ne], 0) == 0) {
-                good_neighs.push_back(temp_surf[ne]);
-            }
-        }
+    //     for (int ne=0; ne<(int)temp_surf.size(); ne++) {
+    //         if (bad_sample(temp_surf[ne], 0) == 0) {
+    //             good_neighs.push_back(temp_surf[ne]);
+    //         }
+    //     }
 
-        if (RC.corresp(pIdx,0) == -1) continue;
+    //     if (RC.corresp(pIdx,0) == -1) continue;
 
-        for (int nidx=0; nidx<(int)good_neighs.size(); nidx++) {
-            if (RC.corresp(good_neighs[nidx],0) == -1) continue;
-            Adj((int)RC.corresp(pIdx,0), (int)RC.corresp(good_neighs[nidx],0)) = 1;
-            Adj((int)RC.corresp(good_neighs[nidx],0), (int)RC.corresp(pIdx,0)) = 1;
-        }
-    }
+    //     for (int nidx=0; nidx<(int)good_neighs.size(); nidx++) {
+    //         if (RC.corresp(good_neighs[nidx],0) == -1) continue;
+    //         Adj((int)RC.corresp(pIdx,0), (int)RC.corresp(good_neighs[nidx],0)) = 1;
+    //         Adj((int)RC.corresp(good_neighs[nidx],0), (int)RC.corresp(pIdx,0)) = 1;
+    //     }
+    // }
 
-    adj_before_collapse.resize(Adj.rows(), Adj.cols());
-    adj_before_collapse = Adj;
+    // adj_before_collapse.resize(Adj.rows(), Adj.cols());
+    // adj_before_collapse = Adj;
 
-    /* Edge collapse */
-    std::vector<int> ec_neighs;
-    Eigen::MatrixXd edge_rows;
-    edge_rows.resize(2,3);
-    while (1) {
-        int tricount = 0;
-        Eigen::MatrixXi skeds;
-        skeds.resize(0,2);
-        Eigen::MatrixXd skcst;
-        skcst.resize(0,1);
+    // /* Edge collapse */
+    // std::vector<int> ec_neighs;
+    // Eigen::MatrixXd edge_rows;
+    // edge_rows.resize(2,3);
+    // while (1) {
+    //     int tricount = 0;
+    //     Eigen::MatrixXi skeds;
+    //     skeds.resize(0,2);
+    //     Eigen::MatrixXd skcst;
+    //     skcst.resize(0,1);
 
-        for (int i=0; i<RC.skelver.rows(); i++) {
-            ec_neighs.clear();
-            for (int col=0; col<Adj.cols(); ++col) {
-                if (Adj(i,col) == 1 && col>i) {
-                    ec_neighs.push_back(col);
-                }
-            }
-            std::sort(ec_neighs.begin(), ec_neighs.end());
+    //     for (int i=0; i<RC.skelver.rows(); i++) {
+    //         ec_neighs.clear();
+    //         for (int col=0; col<Adj.cols(); ++col) {
+    //             if (Adj(i,col) == 1 && col>i) {
+    //                 ec_neighs.push_back(col);
+    //             }
+    //         }
+    //         std::sort(ec_neighs.begin(), ec_neighs.end());
 
-            for (int j=0; j<(int)ec_neighs.size(); j++) {
-                for (int k=j+1; k<(int)ec_neighs.size(); k++) {
-                    if (Adj(ec_neighs[j], ec_neighs[k]) == 1) {
-                        tricount++;
-                        skeds.conservativeResize(skeds.rows()+1, skeds.cols()); // add one row
-                        skeds(skeds.rows()-1, 0) = i;
-                        skeds(skeds.rows()-1, 1) = ec_neighs[j];
+    //         for (int j=0; j<(int)ec_neighs.size(); j++) {
+    //             for (int k=j+1; k<(int)ec_neighs.size(); k++) {
+    //                 if (Adj(ec_neighs[j], ec_neighs[k]) == 1) {
+    //                     tricount++;
+    //                     skeds.conservativeResize(skeds.rows()+1, skeds.cols()); // add one row
+    //                     skeds(skeds.rows()-1, 0) = i;
+    //                     skeds(skeds.rows()-1, 1) = ec_neighs[j];
 
-                        skcst.conservativeResize(skcst.rows()+1, skcst.cols()); 
-                        skcst(skcst.rows()-1, 0) = (RC.skelver.row(i) - RC.skelver.row(ec_neighs[j])).norm();
+    //                     skcst.conservativeResize(skcst.rows()+1, skcst.cols()); 
+    //                     skcst(skcst.rows()-1, 0) = (RC.skelver.row(i) - RC.skelver.row(ec_neighs[j])).norm();
 
-                        skeds.conservativeResize(skeds.rows()+1, skeds.cols());
-                        skeds(skeds.rows()-1, 0) = ec_neighs[j];
-                        skeds(skeds.rows()-1, 1) = ec_neighs[k];
+    //                     skeds.conservativeResize(skeds.rows()+1, skeds.cols());
+    //                     skeds(skeds.rows()-1, 0) = ec_neighs[j];
+    //                     skeds(skeds.rows()-1, 1) = ec_neighs[k];
 
-                        skcst.conservativeResize(skcst.rows()+1, skcst.cols());
-                        skcst(skcst.rows()-1, 0) = (RC.skelver.row(ec_neighs[i]) - RC.skelver.row(ec_neighs[k])).norm();
+    //                     skcst.conservativeResize(skcst.rows()+1, skcst.cols());
+    //                     skcst(skcst.rows()-1, 0) = (RC.skelver.row(ec_neighs[i]) - RC.skelver.row(ec_neighs[k])).norm();
 
-                        skeds.conservativeResize(skeds.rows()+1, skeds.cols());
-                        skeds(skeds.rows()-1, 0) = ec_neighs[k];
-                        skeds(skeds.rows()-1, 1) = i;
+    //                     skeds.conservativeResize(skeds.rows()+1, skeds.cols());
+    //                     skeds(skeds.rows()-1, 0) = ec_neighs[k];
+    //                     skeds(skeds.rows()-1, 1) = i;
 
-                        skcst.conservativeResize(skcst.rows()+1, skcst.cols());
-                        skcst(skcst.rows()-1, 0) = (RC.skelver.row(ec_neighs[k]) - RC.skelver.row(i)).norm();
-                    }
-                }
-            }
-        }
-        if (tricount == 0) break;
+    //                     skcst.conservativeResize(skcst.rows()+1, skcst.cols());
+    //                     skcst(skcst.rows()-1, 0) = (RC.skelver.row(ec_neighs[k]) - RC.skelver.row(i)).norm();
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     if (tricount == 0) break;
 
-        Eigen::MatrixXd::Index minRow, minCol;
-        skcst.minCoeff(&minRow, &minCol);
-        int idx = minRow;
-        Eigen::Vector2i edge = skeds.row(idx);
+    //     Eigen::MatrixXd::Index minRow, minCol;
+    //     skcst.minCoeff(&minRow, &minCol);
+    //     int idx = minRow;
+    //     Eigen::Vector2i edge = skeds.row(idx);
 
-        edge_rows.row(0) = RC.skelver.row(edge(0));
-        edge_rows.row(1) = RC.skelver.row(edge(1));
-        RC.skelver.row(edge(0)) = edge_rows.colwise().mean();
-        RC.skelver.row(edge(1)).setConstant(std::numeric_limits<double>::quiet_NaN());
+    //     edge_rows.row(0) = RC.skelver.row(edge(0));
+    //     edge_rows.row(1) = RC.skelver.row(edge(1));
+    //     RC.skelver.row(edge(0)) = edge_rows.colwise().mean();
+    //     RC.skelver.row(edge(1)).setConstant(std::numeric_limits<double>::quiet_NaN());
 
-        for (int k=0; k<Adj.rows(); k++) {
-            if (Adj(edge(1), k) == 1) {
-                Adj(edge(0), k) = 1;
-                Adj(k, edge(0)) = 1;
-            }
-        }
+    //     for (int k=0; k<Adj.rows(); k++) {
+    //         if (Adj(edge(1), k) == 1) {
+    //             Adj(edge(0), k) = 1;
+    //             Adj(k, edge(0)) = 1;
+    //         }
+    //     }
 
-        Adj.row(edge(1)) = Eigen::MatrixXi::Zero(1, Adj.cols());
-        Adj.row(edge(1)) = Eigen::MatrixXi::Zero(Adj.rows(), 1);
+    //     Adj.row(edge(1)) = Eigen::MatrixXi::Zero(1, Adj.cols());
+    //     Adj.row(edge(1)) = Eigen::MatrixXi::Zero(Adj.rows(), 1);
 
-        for (int r=0; r<RC.corresp.rows(); r++) {
-            if (RC.corresp(r,0) == (double)edge(1)) {
-                RC.corresp(r,0) = (double)edge(0);
-            }
-        }
-    }
-    RC.skeladj = Adj;
+    //     for (int r=0; r<RC.corresp.rows(); r++) {
+    //         if (RC.corresp(r,0) == (double)edge(1)) {
+    //             RC.corresp(r,0) = (double)edge(0);
+    //         }
+    //     }
+    // }
+    // RC.skeladj = Adj;
 }
 
 

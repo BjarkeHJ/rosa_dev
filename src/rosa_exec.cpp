@@ -1,15 +1,12 @@
 #include <rosa_main.hpp>
 #include <string>
-#include <chrono>
-
-#include <pcl/filters/voxel_grid.h>
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr load_pcd_pts(const std::string &pcd_path);
 void save_pcd_pts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pts, const std::string &save_path);
 void save_pcd_pts_normals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pts_nrms, const std::string &save_path);
 
 /* Input and Output Paths... */
-std::string pcd_path = "../data/windmill.pcd";
+std::string pcd_path = "../data/blades.pcd";
 std::string save_path = "../vis_tools/data/output.pcd";
 
 int main() {
@@ -17,24 +14,17 @@ int main() {
     pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     input_cloud = load_pcd_pts(pcd_path);
 
-    pcl::VoxelGrid<pcl::PointXYZ> vg;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ds(new pcl::PointCloud<pcl::PointXYZ>);
-    vg.setInputCloud(input_cloud);
-    vg.setLeafSize(1.0, 1.0, 1.0);
-    vg.filter(*cloud_ds);
-
-    std::cout << "Dowsampled Pointcloud... Size: " << cloud_ds->points.size() << std::endl;
-
     /* ROSA Algorithm */
     std::shared_ptr<RosaPoints> skel_op;
     skel_op.reset(new RosaPoints);
     skel_op->init();
-    skel_op->rosa_main(cloud_ds);
+    skel_op->rosa_main(input_cloud);
 
     /* Save Output */
     save_pcd_pts(skel_op->skeleton_ver_cloud, save_path);
     return 0;
 }
+
 
 
 /* Loading and Saving PointClouds*/

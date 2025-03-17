@@ -31,9 +31,25 @@ class Visualizer:
         if self.point_cloud is None:
             raise ValueError("Point cloud is not set!")
         o3d.visualization.draw_geometries([self.point_cloud], point_show_normal=point_normals)
-
+    
+    def downsample(self, leaf_size):
+        # cloud_ds = o3d.geometry.voxel_down_sample(self.point_cloud, leaf_size)
+        cloud_ds = self.point_cloud.voxel_down_sample(leaf_size)
+        return cloud_ds
 
 pcd_vis = Visualizer()
 pcd_vis.set_pcd(pcd_path)
 print("Cloud Size: ", pcd_vis.size)
 pcd_vis.visualize()
+
+
+
+
+# Downsampling 
+save_flag = False
+save_path = os.path.join(cwd, "data")
+file_name = "/dsc.pcd"
+dsc = pcd_vis.downsample(0.5)
+
+if save_flag == True:
+    o3d.io.write_point_cloud(save_path + file_name, dsc, write_ascii=True)
