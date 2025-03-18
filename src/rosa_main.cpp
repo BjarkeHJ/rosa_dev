@@ -42,7 +42,6 @@ void RosaPoints::rosa_main(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud) {
 }
 
 
-
 /* Main Components */
 void RosaPoints::set_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud) {
     RC.pts_->clear();
